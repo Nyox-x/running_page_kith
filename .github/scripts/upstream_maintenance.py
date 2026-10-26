@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fixed-repository upstream maintenance for Nyox-x/running_page_kith."""
 
 from __future__ import annotations
