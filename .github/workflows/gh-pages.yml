@@ -7,7 +7,7 @@ on:
       save_data_in_github_cache:
         required: true
         type: boolean
-        default: false
+        default: true
       data_cache_prefix:
         required: true
         type: string
@@ -25,36 +25,28 @@ on:
 
 # Allow one concurrent deployment
 concurrency:
-  group: 'pages'
+  group: 'pages-${{ github.ref }}'
   cancel-in-progress: true
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build_and_deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    # The type of runner that the job will run on
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
         with:
-          # if your default branches is not master, please change it here
-          ref: master
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Cache Data Files
         if: inputs.save_data_in_github_cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             activities
@@ -70,6 +62,9 @@ jobs:
           restore-keys: |
             ${{ inputs.data_cache_prefix }}-${{ github.sha }}-
             ${{ inputs.data_cache_prefix }}-
+
+      - name: Verify cached activity data
+        run: python run_page/verify_activity_data.py
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -102,9 +97,20 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload dist repository
           name: pages-artifact
           path: './dist'
+
+  deploy:
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

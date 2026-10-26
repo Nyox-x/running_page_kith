@@ -281,6 +281,9 @@ jobs:
         run: |
           warp-cli --accept-tos disconnect
 
+      - name: Verify synced activity data
+        run: python run_page/verify_activity_data.py
+
       - name: Push new runs
         if: env.SAVE_DATA_IN_GITHUB_CACHE != 'true'
         run: |
@@ -302,11 +305,16 @@ jobs:
           echo "BUILD_GH_PAGES=$BUILD_GH_PAGES" >> "$GITHUB_OUTPUT"
 
   publish_github_pages:
-    if: needs.sync.result == 'success' && needs.sync.outputs.BUILD_GH_PAGES == 'true'
     name: Build and publish Github Pages
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     uses: ./.github/workflows/gh-pages.yml
     with:
       save_data_in_github_cache: ${{needs.sync.outputs.SAVE_DATA_IN_GITHUB_CACHE == 'true'}}
       data_cache_prefix: ${{needs.sync.outputs.DATA_CACHE_PREFIX}}
+    secrets: inherit
     needs:
       - sync
+    if: needs.sync.result == 'success' && needs.sync.outputs.BUILD_GH_PAGES == 'true'
